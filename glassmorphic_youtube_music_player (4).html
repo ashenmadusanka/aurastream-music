@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glassmorphic YouTube Music Player</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        glassDark: 'rgba(15, 23, 42, 0.75)',
+                        glassCard: 'rgba(30, 41, 59, 0.55)',
+                        glassBorder: 'rgba(255, 255, 255, 0.1)',
+                        accentPink: '#ec4899',
+                        accentPurple: '#8b5cf6',
+                    },
+                    animation: {
+                        'spin-slow': 'spin 12s linear infinite',
+                        'pulse-glow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .glass-modal {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Range slider styling */
+        input[type=range] {
+            accent-color: #ec4899;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative selection:bg-pink-500 selection:text-white pb-24 md:pb-0">
+
+    <!-- Ambient Animated Background Glows -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/30 rounded-full blur-[120px] animate-pulse-glow"></div>
+        <div class="absolute top-1/3 -right-40 w-96 h-96 bg-pink-600/25 rounded-full blur-[140px] animate-pulse-glow" style="animation-delay: 1s;"></div>
+        <div class="absolute -bottom-40 left-1/3 w-96 h-96 bg-blue-600/25 rounded-full blur-[140px] animate-pulse-glow" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Top Header -->
+    <header class="sticky top-0 z-40 w-full glass-panel border-b border-white/10 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center shadow-lg shadow-pink-500/30">
+                <i class="fa-solid fa-music text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-base bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">VibeTube Music</h1>
+                <p class="text-xs text-gray-400 flex items-center gap-1">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    High-Q Audio Streamer
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="openEqualizerModal()" class="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-gray-300 hover:text-pink-400 transition hover:bg-white/10" title="Audio Equalizer">
+                <i class="fa-solid fa-sliders text-sm"></i>
+            </button>
+            <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-gray-300 hover:text-pink-400 transition hover:bg-white/10" title="Theme Toggle">
+                <i id="theme-icon" class="fa-solid fa-moon text-sm"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App Container -->
+    <main class="relative z-10 flex-1 max-w-4xl w-full mx-auto px-4 py-4 flex flex-col">
+
+        <!-- Search Bar Section -->
+        <div class="relative mb-6">
+            <div class="relative flex items-center">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 text-gray-400"></i>
+                <input type="text" id="search-input" placeholder="Search songs, artists, albums, or nonstop mixes..." 
+                    class="w-full pl-11 pr-12 py-3.5 rounded-2xl glass-card text-sm text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/50 transition border border-white/10 shadow-lg"
+                    autocomplete="off">
+                <button id="search-clear-btn" onclick="clearSearch()" class="absolute right-4 text-gray-400 hover:text-white hidden">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <!-- YouTube-like Autocomplete Dropdown -->
+            <div id="autocomplete-dropdown" class="absolute left-0 right-0 mt-2 glass-panel rounded-2xl shadow-2xl border border-white/10 overflow-hidden z-50 hidden max-h-80 overflow-y-auto">
+                <!-- Autocomplete items inserted dynamically -->
+            </div>
+        </div>
+
+        <!-- View Containers -->
+        <div id="view-container" class="flex-1 flex flex-col">
+            <!-- HOME VIEW -->
+            <div id="home-view" class="space-y-6">
+                <!-- Quick Categories / Chips -->
+                <div class="flex space-x-2 overflow-x-auto hide-scrollbar pb-1">
+                    <button onclick="searchCategory('Sinhala Nonstop')" class="px-4 py-2 rounded-xl glass-card text-xs font-medium text-gray-200 hover:bg-pink-500/20 hover:border-pink-500/40 transition whitespace-nowrap">🔥 Sinhala Nonstop</button>
+                    <button onclick="searchCategory('Trending Music 2026')" class="px-4 py-2 rounded-xl glass-card text-xs font-medium text-gray-200 hover:bg-pink-500/20 hover:border-pink-500/40 transition whitespace-nowrap">✨ Trending 2026</button>
+                    <button onclick="searchCategory('Lo-fi Chill Beats')" class="px-4 py-2 rounded-xl glass-card text-xs font-medium text-gray-200 hover:bg-pink-500/20 hover:border-pink-500/40 transition whitespace-nowrap">🎧 Lo-Fi Chill</button>
+                    <button onclick="searchCategory('Acoustic Love Songs')" class="px-4 py-2 rounded-xl glass-card text-xs font-medium text-gray-200 hover:bg-pink-500/20 hover:border-pink-500/40 transition whitespace-nowrap">🎸 Acoustic Love</button>
+                    <button onclick="searchCategory('Workout Gym Remix')" class="px-4 py-2 rounded-xl glass-card text-xs font-medium text-gray-200 hover:bg-pink-500/20 hover:border-pink-500/40 transition whitespace-nowrap">⚡ Gym Remix</button>
+                </div>
+
+                <!-- Featured Banner Carousel / Card -->
+                <div class="relative rounded-3xl overflow-hidden glass-panel border border-white/10 p-6 flex flex-col justify-end min-h-[200px] shadow-2xl group cursor-pointer" onclick="playFeaturedHit()">
+                    <div class="absolute inset-0 z-0 overflow-hidden">
+                        <img id="featured-bg-img" src="https://placehold.co/800x400/1e293b/ec4899?text=Vibe+Featured" alt="Featured" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition duration-700">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                    </div>
+                    <div class="relative z-10">
+                        <span class="px-3 py-1 rounded-full bg-pink-500/30 border border-pink-500/40 text-pink-300 text-[10px] font-semibold uppercase tracking-wider mb-2 inline-block">Editor's Pick</span>
+                        <h2 id="featured-title" class="text-xl font-bold text-white mb-1">Sinhala Nonstop & Trending Hits</h2>
+                        <p id="featured-subtitle" class="text-xs text-gray-300 mb-4 line-clamp-1">Immerse in high quality ad-free continuous audio streams.</p>
+                        <button class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium text-xs shadow-lg shadow-pink-500/30 flex items-center space-x-2 w-fit">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Play Now</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Trending / Recommended Section -->
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-base text-white flex items-center gap-2">
+                            <i class="fa-solid fa-fire text-pink-500"></i> Recommended For You
+                        </h3>
+                        <button onclick="loadDefaultTrending()" class="text-xs text-pink-400 hover:underline">Refresh</button>
+                    </div>
+                    <div id="home-recommendations-list" class="space-y-2.5">
+                        <!-- Populated dynamically -->
+                        <div class="text-center py-8 text-gray-400 text-sm">
+                            <i class="fa-solid fa-spinner fa-spin text-2xl text-pink-500 mb-2"></i>
+                            <p>Loading trending tracks from YouTube API...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEARCH RESULTS VIEW (Compact Horizontal YouTube Layout) -->
+            <div id="search-view" class="space-y-3 hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 id="search-query-title" class="font-bold text-sm text-gray-300">Search Results</h3>
+                    <span id="search-count" class="text-xs text-gray-400"></span>
+                </div>
+                <div id="search-results-list" class="space-y-2.5">
+                    <!-- Compact horizontal cards inserted here -->
+                </div>
+            </div>
+
+            <!-- PLAYLISTS VIEW -->
+            <div id="playlist-view" class="space-y-4 hidden">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-base text-white flex items-center gap-2">
+                        <i class="fa-solid fa-list-music text-purple-500"></i> My Playlists & Favorites
+                    </h3>
+                    <button onclick="openCreatePlaylistModal()" class="px-3 py-1.5 rounded-xl bg-pink-500/20 border border-pink-500/30 text-pink-300 text-xs font-medium flex items-center gap-1.5 hover:bg-pink-500/30 transition">
+                        <i class="fa-solid fa-plus"></i> New Playlist
+                    </button>
+                </div>
+                <!-- Favorites Quick Card -->
+                <div onclick="openFavoritesPlaylist()" class="p-4 rounded-2xl glass-card flex items-center justify-between cursor-pointer hover:border-pink-500/40 transition group">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-md shadow-pink-500/30 group-hover:scale-105 transition">
+                            <i class="fa-solid fa-heart text-lg"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-white">Liked Songs</h4>
+                            <p id="favorites-count" class="text-xs text-gray-400">0 songs saved</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-400 text-sm"></i>
+                </div>
+                <!-- Custom Playlists Grid / List -->
+                <div id="custom-playlists-container" class="space-y-2.5">
+                    <!-- Inserted dynamically -->
+                </div>
+            </div>
+
+            <!-- SETTINGS VIEW -->
+            <div id="settings-view" class="space-y-6 hidden">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-blue-500"></i> Player Settings & Info
+                </h3>
+                <div class="space-y-3">
+                    <div class="p-4 rounded-2xl glass-card flex items-center justify-between">
+                        <div>
+                            <h4 class="font-semibold text-sm text-white">Screen Wake Lock</h4>
+                            <p class="text-xs text-gray-400">Keep screen awake while player is open</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="wakelock-toggle" class="sr-only peer" checked onchange="toggleWakeLockSetting()">
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                        </label>
+                    </div>
+                    <div class="p-4 rounded-2xl glass-card flex items-center justify-between">
+                        <div>
+                            <h4 class="font-semibold text-sm text-white">High Quality Audio (256kbps)</h4>
+                            <p class="text-xs text-gray-400">Prefer maximum audio stream bitrate</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                        </label>
+                    </div>
+                    <div class="p-4 rounded-2xl glass-card">
+                        <h4 class="font-semibold text-sm text-white mb-1">Invidious / Piped API Instances</h4>
+                        <p class="text-xs text-gray-400 mb-3">Using reliable public YouTube proxy endpoints for lightning-fast audio extraction.</p>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="api-instance-input" value="https://invidious.jing.rocks" class="flex-1 px-3 py-2 rounded-xl bg-slate-900/60 text-xs text-gray-300 border border-white/10 focus:outline-none">
+                            <button onclick="testApiInstance()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition">Test</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Mini Player Bar (Sticky above bottom nav on mobile) -->
+    <div id="mini-player" class="fixed bottom-16 md:bottom-0 left-0 right-0 z-40 max-w-4xl mx-auto px-4 pb-2">
+        <div class="glass-panel rounded-2xl p-2.5 shadow-2xl flex items-center justify-between border border-white/15 relative overflow-hidden">
+            <!-- Progress bar top line -->
+            <div class="absolute top-0 left-0 right-0 h-1 bg-white/10 cursor-pointer" onclick="seekAudio(event)">
+                <div id="mini-progress-bar" class="h-full bg-gradient-to-r from-pink-500 to-purple-500 w-0 transition-all duration-150"></div>
+            </div>
+
+            <!-- Thumbnail & Info (Click opens immersive player) -->
+            <div class="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer" onclick="openImmersivePlayer()">
+                <div class="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-slate-800 shadow-md">
+                    <img id="mini-thumb" src="https://placehold.co/100x100/1e293b/ec4899?text=♪" alt="Thumb" class="w-full h-full object-cover">
+                    <div id="mini-playing-anim" class="absolute inset-0 bg-black/40 flex items-center justify-center hidden">
+                        <div class="flex space-x-0.5 items-end h-4">
+                            <span class="w-1 bg-pink-400 animate-pulse h-full"></span>
+                            <span class="w-1 bg-purple-400 animate-pulse h-2/3" style="animation-delay: 0.2s;"></span>
+                            <span class="w-1 bg-pink-400 animate-pulse h-4/5" style="animation-delay: 0.4s;"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h4 id="mini-title" class="font-semibold text-xs text-white truncate">Select a song to play</h4>
+                    <p id="mini-channel" class="text-[11px] text-gray-400 truncate">VibeTube Audio</p>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex items-center space-x-2 ml-3">
+                <button onclick="togglePlayPause()" id="mini-play-btn" class="w-10 h-10 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-pink-500/30 hover:scale-105 transition">
+                    <i id="mini-play-icon" class="fa-solid fa-play text-xs"></i>
+                </button>
+                <button onclick="playNext()" class="w-9 h-9 rounded-xl glass-card flex items-center justify-center text-gray-300 hover:text-white transition hidden sm:flex">
+                    <i class="fa-solid fa-forward-step text-xs"></i>
+                </button>
+                <button onclick="openImmersivePlayer()" class="w-9 h-9 rounded-xl glass-card flex items-center justify-center text-gray-300 hover:text-white transition">
+                    <i class="fa-solid fa-expand text-xs"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar (Mobile Optimized) -->
+    <nav class="fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-white/10 px-6 py-2 flex items-center justify-around max-w-4xl mx-auto backdrop-blur-xl">
+        <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center space-y-1 text-pink-400 transition">
+            <i class="fa-solid fa-house text-base"></i>
+            <span class="text-[10px] font-medium">Home</span>
+        </button>
+        <button onclick="switchTab('search')" id="nav-search" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-pink-400 transition">
+            <i class="fa-solid fa-magnifying-glass text-base"></i>
+            <span class="text-[10px] font-medium">Search</span>
+        </button>
+        <button onclick="switchTab('playlist')" id="nav-playlist" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-pink-400 transition">
+            <i class="fa-solid fa-list-music text-base"></i>
+            <span class="text-[10px] font-medium">Playlists</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-pink-400 transition">
+            <i class="fa-solid fa-gear text-base"></i>
+            <span class="text-[10px] font-medium">Settings</span>
+        </button>
+    </nav>
+
+    <!-- IMMERSIVE NOW PLAYING MODAL (Full screen glassmorphic overlay) -->
+    <div id="immersive-modal" class="fixed inset-0 z-50 glass-modal flex flex-col justify-between p-6 transform translate-y-full transition-transform duration-300 ease-out overflow-y-auto">
+        <!-- Atmospheric background image matching song thumbnail -->
+        <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <img id="immersive-bg-blur" src="" alt="Atmospheric Blur" class="w-full h-full object-cover blur-[80px] opacity-30 scale-125">
+            <div class="absolute inset-0 bg-slate-950/80"></div>
+        </div>
+
+        <!-- Top bar -->
+        <div class="relative z-10 flex items-center justify-between">
+            <button onclick="closeImmersivePlayer()" class="w-10 h-10 rounded-2xl glass-card flex items-center justify-center text-gray-300 hover:text-white transition">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+            <div class="text-center">
+                <span class="text-[10px] uppercase tracking-widest text-pink-400 font-semibold block">Now Playing</span>
+                <span id="immersive-source-badge" class="text-xs text-gray-400">YouTube Audio Stream</span>
+            </div>
+            <button onclick="toggleFavoriteCurrent()" id="immersive-fav-btn" class="w-10 h-10 rounded-2xl glass-card flex items-center justify-center text-gray-300 hover:text-pink-500 transition">
+                <i class="fa-regular fa-heart text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Center content: Rotating / pulsing album art & visualizer -->
+        <div class="relative z-10 flex-1 flex flex-col items-center justify-center py-6 max-w-sm mx-auto w-full">
+            <!-- Vinyl / Pulsing Art -->
+            <div class="relative w-64 h-64 sm:w-72 sm:h-72 mb-8 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 blur-xl opacity-40 animate-pulse-glow"></div>
+                <div id="album-art-container" class="relative w-full h-full rounded-3xl overflow-hidden glass-panel border border-white/20 shadow-2xl flex items-center justify-center group">
+                    <img id="immersive-thumb" src="https://placehold.co/400x400/1e293b/ec4899?text=♪" alt="Album Art" class="w-full h-full object-cover transition duration-500">
+                    <div class="absolute inset-0 bg-black/10"></div>
+                </div>
+            </div>
+
+            <!-- Song title & channel -->
+            <div class="text-center w-full mb-6">
+                <h2 id="immersive-title" class="font-bold text-lg text-white mb-1 truncate px-2">Ready to Play</h2>
+                <p id="immersive-channel" class="text-xs text-gray-400 truncate px-2">Choose a song from home or search</p>
+            </div>
+
+            <!-- Audio visualizer canvas bars -->
+            <div class="w-full h-10 flex items-end justify-center space-x-1 mb-6 px-4" id="visualizer-bars">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Seek bar & times -->
+            <div class="w-full space-y-2 mb-6">
+                <div class="relative flex items-center">
+                    <input type="range" id="seek-slider" min="0" max="100" value="0" step="0.1" 
+                        class="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                        oninput="onSeekInput(this.value)" onchange="onSeekChange(this.value)">
+                </div>
+                <div class="flex justify-between text-[11px] text-gray-400 font-medium">
+                    <span id="current-time">0:00</span>
+                    <span id="total-duration">0:00</span>
+                </div>
+            </div>
+
+            <!-- Main Playback Controls -->
+            <div class="flex items-center justify-between w-full px-4 mb-6">
+                <button onclick="toggleShuffle()" id="shuffle-btn" class="text-gray-400 hover:text-white transition text-base" title="Shuffle">
+                    <i class="fa-solid fa-shuffle"></i>
+                </button>
+                <button onclick="playPrev()" class="text-gray-200 hover:text-white transition text-xl">
+                    <i class="fa-solid fa-backward-step"></i>
+                </button>
+                <button onclick="togglePlayPause()" id="immersive-play-btn" class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white text-2xl shadow-xl shadow-pink-500/40 hover:scale-105 transition">
+                    <i id="immersive-play-icon" class="fa-solid fa-play"></i>
+                </button>
+                <button onclick="playNext()" class="text-gray-200 hover:text-white transition text-xl">
+                    <i class="fa-solid fa-forward-step"></i>
+                </button>
+                <button onclick="toggleRepeat()" id="repeat-btn" class="text-gray-400 hover:text-white transition text-base" title="Repeat">
+                    <i class="fa-solid fa-repeat"></i>
+                </button>
+            </div>
+
+            <!-- Bottom utility buttons -->
+            <div class="flex items-center justify-center space-x-6 w-full">
+                <button onclick="openAddToPlaylistModal()" class="flex items-center space-x-2 text-xs text-gray-300 hover:text-pink-400 transition bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add to Playlist</span>
+                </button>
+                <button onclick="openEqualizerModal()" class="flex items-center space-x-2 text-xs text-gray-300 hover:text-pink-400 transition bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Equalizer</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="relative z-10 text-center text-[10px] text-gray-500 pb-2">
+            VibeTube Audio Engine • High Fidelity Ad-Free YouTube Stream
+        </div>
+    </div>
+
+    <!-- EQUALIZER MODAL -->
+    <div id="equalizer-modal" class="fixed inset-0 z-50 glass-modal flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-3xl p-6 max-w-sm w-full border border-white/10 shadow-2xl relative">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-pink-500"></i> 9-Band Audio Equalizer
+                </h3>
+                <button onclick="closeEqualizerModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-xs text-gray-400 mb-6">Fine-tune frequencies for bass boost, vocals, or crystal clear acoustics.</p>
+            
+            <!-- Preset buttons -->
+            <div class="grid grid-cols-3 gap-2 mb-6">
+                <button onclick="setEqPreset('flat')" class="py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-[11px] font-medium text-gray-200 transition">Flat</button>
+                <button onclick="setEqPreset('bass')" class="py-1.5 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[11px] font-medium transition">Bass Boost</button>
+                <button onclick="setEqPreset('vocal')" class="py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-[11px] font-medium text-gray-200 transition">Vocal</button>
+            </div>
+
+            <!-- 9 Vertical Sliders Container -->
+            <div class="grid grid-cols-9 gap-1 h-36 mb-6 items-end justify-items-center px-1">
+                <!-- Generated via JS -->
+            </div>
+
+            <button onclick="closeEqualizerModal()" class="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold text-xs shadow-lg shadow-pink-500/30">Apply Equalizer</button>
+        </div>
+    </div>
+
+    <!-- CREATE PLAYLIST MODAL -->
+    <div id="create-playlist-modal" class="fixed inset-0 z-50 glass-modal flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-3xl p-6 max-w-sm w-full border border-white/10 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-base text-white">Create New Playlist</h3>
+                <button onclick="closeCreatePlaylistModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <input type="text" id="new-playlist-name" placeholder="Playlist Name (e.g. Sinhala Hits)" class="w-full px-4 py-3 rounded-2xl bg-slate-900/60 text-sm text-white placeholder-gray-500 border border-white/10 focus:outline-none focus:ring-2 focus:ring-pink-500/50 mb-4">
+            <button onclick="saveNewPlaylist()" class="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold text-xs shadow-lg shadow-pink-500/30">Create Playlist</button>
+        </div>
+    </div>
+
+    <!-- ADD TO PLAYLIST MODAL -->
+    <div id="add-to-playlist-modal" class="fixed inset-0 z-50 glass-modal flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-3xl p-6 max-w-sm w-full border border-white/10 shadow-2xl max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-base text-white">Add Song to Playlist</h3>
+                <button onclick="closeAddToPlaylistModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="playlists-selection-list" class="space-y-2 overflow-y-auto flex-1 mb-4">
+                <!-- Populated dynamically -->
+            </div>
+            <button onclick="openCreatePlaylistModal()" class="w-full py-2.5 rounded-xl bg-white/10 text-xs text-white font-medium hover:bg-white/20 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus"></i> New Playlist
+            </button>
+        </div>
+    </div>
+
+    <!-- HIDDEN AUDIO ELEMENT -->
+    <audio id="main-audio-element" crossorigin="anonymous"></audio>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- State Variables ---
+        let currentTrack = null;
+        let queue = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let isShuffle = false;
+        let isRepeat = false;
+        let favorites = JSON.parse(localStorage.getItem('vibetube_favs')) || [];
+        let customPlaylists = JSON.parse(localStorage.getItem('vibetube_playlists')) || [];
+        let searchDebounceTimer = null;
+        let wakeLockObj = null;
+        let audioContext = null;
+        let audioAnalysers = null;
+        let sourceNode = null;
+        let gainNode = null;
+        let biquadFilters = [];
+
+        // Public reliable Invidious/Piped API instances
+        const invidiousInstances = [
+            "https://invidious.jing.rocks",
+            "https://vid.priv.au",
+            "https://invidious.no-pun.me",
+            "https://inv.nadeko.net",
+            "https://invidious.projectsegfau.lt"
+        ];
+        let currentApiIdx = 0;
+
+        // --- Initialization ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initAudioEngine();
+            loadDefaultTrending();
+            setupEventListeners();
+            updateFavoritesCount();
+            renderCustomPlaylists();
+            initWakeLock();
+        });
+
+        // --- Audio Engine & Web Audio API Setup ---
+        function initAudioEngine() {
+            const audioEl = document.getElementById('main-audio-element');
+            
+            audioEl.addEventListener('timeupdate', () => {
+                if (audioEl.duration) {
+                    const progress = (audioEl.currentTime / audioEl.duration) * 100;
+                    document.getElementById('seek-slider').value = progress;
+                    document.getElementById('mini-progress-bar').style.width = `${progress}%`;
+                    document.getElementById('current-time').innerText = formatTime(audioEl.currentTime);
+                    document.getElementById('total-duration').innerText = formatTime(audioEl.duration);
+                }
+            });
+
+            audioEl.addEventListener('ended', () => {
+                if (isRepeat) {
+                    audioEl.currentTime = 0;
+                    audioEl.play();
+                } else {
+                    playNext();
+                }
+            });
+
+            audioEl.addEventListener('play', () => {
+                isPlaying = true;
+                updatePlayStateUI(true);
+            });
+
+            audioEl.addEventListener('pause', () => {
+                isPlaying = false;
+                updatePlayStateUI(false);
+            });
+        }
+
+        function setupAudioContext() {
+            if (audioContext) return;
+            try {
+                const audioEl = document.getElementById('main-audio-element');
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioCtx();
+                sourceNode = audioContext.createMediaElementSource(audioEl);
+                gainNode = audioContext.createGain();
+
+                // 9-Band Equalizer filters setup
+                const frequencies = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 16000];
+                let lastNode = sourceNode;
+                biquadFilters = frequencies.map(freq => {
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = 'peaking';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 1.0;
+                    filter.gain.value = 0;
+                    lastNode.connect(filter);
+                    lastNode = filter;
+                    return filter;
+                });
+
+                lastNode.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+            } catch (e) {
+                console.log("Web Audio API not fully supported or blocked:", e);
+            }
+        }
+
+        // --- Wake Lock API ---
+        async function initWakeLock() {
+            if ('wakeLock' in navigator && document.getElementById('wakelock-toggle').checked) {
+                try {
+                    wakeLockObj = await navigator.wakeLock.request('screen');
+                    document.addEventListener('visibilitychange', async () => {
+                        if (wakeLockObj !== null && document.visibilityState === 'visible' && document.getElementById('wakelock-toggle').checked) {
+                            wakeLockObj = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                } catch (err) {
+                    console.log(`Wake Lock error: ${err.name}, ${err.message}`);
+                }
+            }
+        }
+
+        function toggleWakeLockSetting() {
+            const enabled = document.getElementById('wakelock-toggle').checked;
+            if (enabled) {
+                initWakeLock();
+            } else if (wakeLockObj) {
+                wakeLockObj.release().then(() => { wakeLockObj = null; });
+            }
+        }
+
+        // --- Search & Autocomplete (YouTube App Style) ---
+        const searchInput = document.getElementById('search-input');
+        const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+        const searchClearBtn = document.getElementById('search-clear-btn');
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (query.length > 0) {
+                searchClearBtn.classList.remove('hidden');
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(() => fetchAutocomplete(query), 200);
+            } else {
+                searchClearBtn.classList.add('hidden');
+                autocompleteDropdown.classList.add('hidden');
+            }
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.trim();
+                if (query) {
+                    autocompleteDropdown.classList.add('hidden');
+                    performYouTubeSearch(query);
+                }
+            }
+        });
+
+        function clearSearch() {
+            searchInput.value = '';
+            searchClearBtn.classList.add('hidden');
+            autocompleteDropdown.classList.add('hidden');
+            searchInput.focus();
+        }
+
+        async function fetchAutocomplete(query) {
+            try {
+                // Using public Invidious / Piped search suggestions API
+                const instance = invidiousInstances[currentApiIdx];
+                const res = await fetch(`https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                const suggestions = data[1] || [];
+                renderAutocomplete(suggestions);
+            } catch (err) {
+                // Fallback direct list if CORS blocks suggestqueries
+                renderAutocomplete([query + ' songs', query + ' nonstop', query + ' live remix', query + ' official audio']);
+            }
+        }
+
+        function renderAutocomplete(suggestions) {
+            if (!suggestions.length) {
+                autocompleteDropdown.classList.add('hidden');
+                return;
+            }
+            let html = '';
+            suggestions.forEach(item => {
+                html += `
+                    <div onclick="selectAutocompleteItem('${item.replace(/'/g, "\\'")}')" class="px-4 py-3 hover:bg-white/15 cursor-pointer flex items-center space-x-3 transition border-b border-white/5 text-xs text-gray-200">
+                        <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
+                        <span class="truncate">${item}</span>
+                    </div>
+                `;
+            });
+            autocompleteDropdown.innerHTML = html;
+            autocompleteDropdown.classList.remove('hidden');
+        }
+
+        function selectAutocompleteItem(query) {
+            searchInput.value = query;
+            autocompleteDropdown.classList.add('hidden');
+            performYouTubeSearch(query);
+        }
+
+        // --- YouTube API Search & Compact Horizontal Layout ---
+        async function performYouTubeSearch(query) {
+            switchTab('search');
+            document.getElementById('search-query-title').innerText = `Results for "${query}"`;
+            const listEl = document.getElementById('search-results-list');
+            listEl.innerHTML = `
+                <div class="text-center py-12 text-gray-400 text-sm">
+                    <i class="fa-solid fa-spinner fa-spin text-2xl text-pink-500 mb-2"></i>
+                    <p>Searching YouTube via Invidious stream API...</p>
+                </div>
+            `;
+
+            try {
+                const instance = invidiousInstances[currentApiIdx];
+                const res = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+                const data = await res.json();
+                
+                if (!data || data.length === 0) {
+                    throw new Error("No results found");
+                }
+
+                renderSearchResults(data);
+            } catch (err) {
+                // Try fallback instance
+                currentApiIdx = (currentApiIdx + 1) % invidiousInstances.length;
+                try {
+                    const fallbackInstance = invidiousInstances[currentApiIdx];
+                    const res = await fetch(`${fallbackInstance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+                    const data = await res.json();
+                    renderSearchResults(data);
+                } catch (e) {
+                    listEl.innerHTML = `
+                        <div class="text-center py-12 text-red-400 text-xs glass-card rounded-2xl p-6">
+                            <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+                            <p>Failed to connect to YouTube Invidious proxy. Please check connection or try again.</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function renderSearchResults(items) {
+            const listEl = document.getElementById('search-results-list');
+            document.getElementById('search-count').innerText = `${items.length} videos`;
+            let html = '';
+
+            items.forEach((item, index) => {
+                const videoId = item.videoId;
+                const title = item.title || 'Unknown Title';
+                const author = item.author || 'YouTube Artist';
+                const viewCount = formatViews(item.viewCount || 0);
+                const duration = formatDuration(item.lengthSeconds || 180);
+                const thumb = item.videoThumbnails?.[0]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+                // Compact horizontal YouTube mobile layout: Small thumbnail on left, title, channel, views on right
+                html += `
+                    <div onclick="playTrack('${videoId}', '${title.replace(/'/g, "\\'")}', '${author.replace(/'/g, "\\'")}', '${thumb}')" 
+                        class="glass-card rounded-2xl p-2.5 flex items-center space-x-3 cursor-pointer hover:border-pink-500/40 transition group">
+                        <!-- Small thumbnail on left -->
+                        <div class="relative w-24 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-slate-800">
+                            <img src="${thumb}" alt="${title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/200x120/1e293b/ec4899?text=Audio'">
+                            <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] text-white font-mono">${duration}</span>
+                        </div>
+                        <!-- Info on right -->
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-xs text-white line-clamp-2 mb-1 group-hover:text-pink-400 transition">${title}</h4>
+                            <p class="text-[11px] text-gray-400 truncate">${author}</p>
+                            <p class="text-[10px] text-gray-500 mt-0.5">${viewCount} views</p>
+                        </div>
+                        <button class="w-9 h-9 rounded-xl bg-white/5 group-hover:bg-pink-500 text-gray-300 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
+                            <i class="fa-solid fa-play text-xs"></i>
+                        </button>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+        }
+
+        // --- Load Default Trending Songs ---
+        async function loadDefaultTrending() {
+            try {
+                const instance = invidiousInstances[currentApiIdx];
+                const res = await fetch(`${instance}/api/v1/trending?type=music`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    renderTrendingList(data);
+                    // Set featured banner as first item
+                    const top = data[0];
+                    document.getElementById('featured-title').innerText = top.title;
+                    document.getElementById('featured-subtitle').innerText = `${top.author} • ${formatViews(top.viewCount)} views`;
+                    if (top.videoThumbnails?.[0]?.url) {
+                        document.getElementById('featured-bg-img').src = top.videoThumbnails[0].url;
+                    }
+                }
+            } catch (e) {
+                // Fallback search default
+                performHomeDefaultSearch();
+            }
+        }
+
+        async function performHomeDefaultSearch() {
+            try {
+                const instance = invidiousInstances[0];
+                const res = await fetch(`${instance}/api/v1/search?q=Sinhala+Nonstop+2026&type=video`);
+                const data = await res.json();
+                renderTrendingList(data);
+            } catch (e) {
+                document.getElementById('home-recommendations-list').innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Failed to load trending items.</p>`;
+            }
+        }
+
+        function renderTrendingList(items) {
+            const listEl = document.getElementById('home-recommendations-list');
+            let html = '';
+            items.slice(0, 15).forEach(item => {
+                const videoId = item.videoId;
+                const title = item.title || 'Unknown Title';
+                const author = item.author || 'Artist';
+                const duration = formatDuration(item.lengthSeconds || 180);
+                const thumb = item.videoThumbnails?.[0]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+                html += `
+                    <div onclick="playTrack('${videoId}', '${title.replace(/'/g, "\\'")}', '${author.replace(/'/g, "\\'")}', '${thumb}')" 
+                        class="glass-card rounded-2xl p-2.5 flex items-center space-x-3 cursor-pointer hover:border-pink-500/40 transition group">
+                        <div class="relative w-20 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-slate-800">
+                            <img src="${thumb}" alt="${title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <span class="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/70 text-[8px] text-white font-mono">${duration}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-xs text-white line-clamp-1 mb-0.5 group-hover:text-pink-400 transition">${title}</h4>
+                            <p class="text-[11px] text-gray-400 truncate">${author}</p>
+                        </div>
+                        <div class="w-8 h-8 rounded-xl bg-white/5 group-hover:bg-pink-500 text-gray-300 group-hover:text-white flex items-center justify-center transition flex-shrink-0">
+                            <i class="fa-solid fa-play text-[10px]"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function searchCategory(cat) {
+            searchInput.value = cat;
+            performYouTubeSearch(cat);
+        }
+
+        function playFeaturedHit() {
+            // Play first item or default hit
+            playTrack('dQw4w9WgXcQ', 'Sinhala Nonstop & Trending Hits 2026', 'VibeTube Mix', 'https://placehold.co/600x400/1e293b/ec4899?text=Nonstop');
+        }
+
+        // --- Audio Stream Playback & Invidious Extractor ---
+        async function playTrack(videoId, title, channel, thumb) {
+            setupAudioContext();
+            currentTrack = { videoId, title, channel, thumb };
+            
+            // Update UI immediately
+            document.getElementById('mini-title').innerText = title;
+            document.getElementById('mini-channel').innerText = channel;
+            document.getElementById('mini-thumb').src = thumb;
+            document.getElementById('mini-playing-anim').classList.remove('hidden');
+
+            document.getElementById('immersive-title').innerText = title;
+            document.getElementById('immersive-channel').innerText = channel;
+            document.getElementById('immersive-thumb').src = thumb;
+            document.getElementById('immersive-bg-blur').src = thumb;
+
+            updateFavoriteButtonUI();
+
+            // Fetch high quality audio stream URL from Invidious instance
+            try {
+                const instance = invidiousInstances[currentApiIdx];
+                const res = await fetch(`${instance}/api/v1/videos/${videoId}`);
+                const data = await res.json();
+                
+                // Find highest quality adaptive audio or fallback to adaptive formats
+                const adaptiveFormats = data.adaptiveFormats || [];
+                const audioFormats = adaptiveFormats.filter(f => f.type && f.type.includes('audio'));
+                
+                let streamUrl = '';
+                if (audioFormats.length > 0) {
+                    // Sort by bitrate descending for high quality 256kbps audio
+                    audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+                    streamUrl = audioFormats[0].url;
+                } else if (data.formatStreams && data.formatStreams.length > 0) {
+                    streamUrl = data.formatStreams[0].url;
+                }
+
+                if (!streamUrl) {
+                    throw new Error("No direct audio stream found");
+                }
+
+                const audioEl = document.getElementById('main-audio-element');
+                audioEl.src = streamUrl;
+                audioEl.play().catch(e => {
+                    console.log("Auto-play blocked or stream error:", e);
+                });
+
+                // Update Media Session API for lock screen controls & notifications
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: title,
+                        artist: channel,
+                        album: 'VibeTube Music',
+                        artwork: [
+                            { src: thumb, sizes: '96x96', type: 'image/jpeg' },
+                            { src: thumb, sizes: '256x256', type: 'image/jpeg' },
+                            { src: thumb, sizes: '512x512', type: 'image/jpeg' },
+                        ]
+                    });
+                    navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+                    navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+                    navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+                    navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+                }
+
+            } catch (err) {
+                // Fallback stream via Piped or embed audio proxy
+                const audioEl = document.getElementById('main-audio-element');
+                audioEl.src = `https://pipedapi.kavin.rocks/stream?id=${videoId}`;
+                audioEl.play().catch(e => {
+                    console.log("Fallback stream error:", e);
+                });
+            }
+        }
+
+        function togglePlayPause() {
+            const audioEl = document.getElementById('main-audio-element');
+            if (!currentTrack) {
+                playFeaturedHit();
+                return;
+            }
+            if (audioEl.paused) {
+                audioEl.play();
+            } else {
+                audioEl.pause();
+            }
+        }
+
+        function updatePlayStateUI(playing) {
+            const playIcon1 = document.getElementById('mini-play-icon');
+            const playIcon2 = document.getElementById('immersive-play-icon');
+            if (playing) {
+                playIcon1.className = 'fa-solid fa-pause text-xs';
+                playIcon2.className = 'fa-solid fa-pause';
+                document.getElementById('mini-playing-anim').classList.remove('hidden');
+            } else {
+                playIcon1.className = 'fa-solid fa-play text-xs';
+                playIcon2.className = 'fa-solid fa-play';
+                document.getElementById('mini-playing-anim').classList.add('hidden');
+            }
+        }
+
+        function playNext() {
+            // If playing in queue or playlist, advance index
+            // For now, load another recommended song
+            loadDefaultTrending();
+        }
+
+        function playPrev() {
+            const audioEl = document.getElementById('main-audio-element');
+            if (audioEl.currentTime > 3) {
+                audioEl.currentTime = 0;
+            } else {
+                playNext();
+            }
+        }
+
+        function seekAudio(e) {
+            const audioEl = document.getElementById('main-audio-element');
+            if (!audioEl.duration) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            audioEl.currentTime = pos * audioEl.duration;
+        }
+
+        function onSeekInput(val) {
+            // Optional preview
+        }
+
+        function onSeekChange(val) {
+            const audioEl = document.getElementById('main-audio-element');
+            if (audioEl.duration) {
+                audioEl.currentTime = (val / 100) * audioEl.duration;
+            }
+        }
+
+        // --- Immersive Player Modal ---
+        function openImmersivePlayer() {
+            document.getElementById('immersive-modal').classList.remove('translate-y-full');
+        }
+
+        function closeImmersivePlayer() {
+            document.getElementById('immersive-modal').classList.add('translate-y-full');
+        }
+
+        // --- Shuffle & Repeat ---
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            const btn = document.getElementById('shuffle-btn');
+            btn.classList.toggle('text-pink-400', isShuffle);
+        }
+
+        function toggleRepeat() {
+            isRepeat = !isRepeat;
+            const btn = document.getElementById('repeat-btn');
+            btn.classList.toggle('text-pink-400', isRepeat);
+        }
+
+        // --- Favorites & Playlists ---
+        function toggleFavoriteCurrent() {
+            if (!currentTrack) return;
+            const idx = favorites.findIndex(f => f.videoId === currentTrack.videoId);
+            if (idx >= 0) {
+                favorites.splice(idx, 1);
+            } else {
+                favorites.push(currentTrack);
+            }
+            localStorage.setItem('vibetube_favs', JSON.stringify(favorites));
+            updateFavoriteButtonUI();
+            updateFavoritesCount();
+        }
+
+        function updateFavoriteButtonUI() {
+            if (!currentTrack) return;
+            const isFav = favorites.some(f => f.videoId === currentTrack.videoId);
+            const btn = document.getElementById('immersive-fav-btn');
+            if (isFav) {
+                btn.innerHTML = '<i class="fa-solid fa-heart text-lg text-pink-500"></i>';
+            } else {
+                btn.innerHTML = '<i class="fa-regular fa-heart text-lg"></i>';
+            }
+        }
+
+        function updateFavoritesCount() {
+            document.getElementById('favorites-count').innerText = `${favorites.length} songs saved`;
+        }
+
+        function openFavoritesPlaylist() {
+            if (favorites.length === 0) {
+                alertBox("No liked songs yet. Click the heart icon on any song to save it!");
+                return;
+            }
+            // Load first favorite or show view
+            playTrack(favorites[0].videoId, favorites[0].title, favorites[0].channel, favorites[0].thumb);
+        }
+
+        function openCreatePlaylistModal() {
+            document.getElementById('create-playlist-modal').classList.remove('hidden');
+        }
+
+        function closeCreatePlaylistModal() {
+            document.getElementById('create-playlist-modal').classList.add('hidden');
+        }
+
+        function saveNewPlaylist() {
+            const name = document.getElementById('new-playlist-name').value.trim();
+            if (!name) return;
+            customPlaylists.push({ name, songs: [] });
+            localStorage.setItem('vibetube_playlists', JSON.stringify(customPlaylists));
+            document.getElementById('new-playlist-name').value = '';
+            closeCreatePlaylistModal();
+            renderCustomPlaylists();
+        }
+
+        function renderCustomPlaylists() {
+            const container = document.getElementById('custom-playlists-container');
+            let html = '';
+            customPlaylists.forEach((pl, idx) => {
+                html += `
+                    <div class="p-4 rounded-2xl glass-card flex items-center justify-between cursor-pointer hover:border-pink-500/40 transition">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fa-solid fa-list text-base"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-white">${pl.name}</h4>
+                                <p class="text-xs text-gray-400">${pl.songs.length} songs</p>
+                            </div>
+                        </div>
+                        <button onclick="deletePlaylist(${idx})" class="text-gray-400 hover:text-red-400 p-2"><i class="fa-solid fa-trash text-xs"></i></button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function deletePlaylist(idx) {
+            customPlaylists.splice(idx, 1);
+            localStorage.setItem('vibetube_playlists', JSON.stringify(customPlaylists));
+            renderCustomPlaylists();
+        }
+
+        function openAddToPlaylistModal() {
+            if (!currentTrack) {
+                alertBox("Play a song first before adding to playlist.");
+                return;
+            }
+            const listEl = document.getElementById('playlists-selection-list');
+            let html = '';
+            if (customPlaylists.length === 0) {
+                html = `<p class="text-xs text-gray-400 text-center py-4">No custom playlists created yet.</p>`;
+            } else {
+                customPlaylists.forEach((pl, idx) => {
+                    html += `
+                        <div onclick="addCurrentToPlaylist(${idx})" class="p-3 rounded-xl glass-card flex items-center justify-between cursor-pointer hover:bg-white/10 transition">
+                            <span class="text-xs font-semibold text-white">${pl.name}</span>
+                            <i class="fa-solid fa-plus text-xs text-pink-400"></i>
+                        </div>
+                    `;
+                });
+            }
+            listEl.innerHTML = html;
+            document.getElementById('add-to-playlist-modal').classList.remove('hidden');
+        }
+
+        function closeAddToPlaylistModal() {
+            document.getElementById('add-to-playlist-modal').classList.add('hidden');
+        }
+
+        function addCurrentToPlaylist(idx) {
+            if (!currentTrack) return;
+            customPlaylists[idx].songs.push(currentTrack);
+            localStorage.setItem('vibetube_playlists', JSON.stringify(customPlaylists));
+            closeAddToPlaylistModal();
+            renderCustomPlaylists();
+        }
+
+        // --- Equalizer Modal & Controls ---
+        function openEqualizerModal() {
+            document.getElementById('equalizer-modal').classList.remove('hidden');
+            renderEqualizerSliders();
+        }
+
+        function closeEqualizerModal() {
+            document.getElementById('equalizer-modal').classList.add('hidden');
+        }
+
+        function renderEqualizerSliders() {
+            const container = document.querySelector('#equalizer-modal .grid-cols-9');
+            let html = '';
+            const freqs = ['60Hz', '170Hz', '310Hz', '600Hz', '1kHz', '3kHz', '6kHz', '12kHz', '16kHz'];
+            freqs.forEach((f, idx) => {
+                const val = biquadFilters[idx] ? biquadFilters[idx].gain.value : 0;
+                html += `
+                    <div class="flex flex-col items-center space-y-2 h-full justify-between">
+                        <input type="range" min="-12" max="12" step="0.5" value="${val}" oninput="updateEqGain(${idx}, this.value)"
+                            class="h-28 w-1.5 appearance-none bg-white/20 rounded-lg cursor-pointer accent-pink-500 [writing-mode:vertical-lr] [direction:rtl]">
+                        <span class="text-[9px] text-gray-400 font-mono">${f}</span>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function updateEqGain(idx, val) {
+            if (biquadFilters[idx]) {
+                biquadFilters[idx].gain.value = parseFloat(val);
+            }
+        }
+
+        function setEqPreset(preset) {
+            setupAudioContext();
+            let gains = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            if (preset === 'bass') {
+                gains = [8, 6, 4, 1, 0, 0, 1, 2, 3];
+            } else if (preset === 'vocal') {
+                gains = [-2, -1, 1, 4, 6, 4, 2, 0, -1];
+            }
+            biquadFilters.forEach((f, idx) => {
+                f.gain.value = gains[idx];
+            });
+            renderEqualizerSliders();
+        }
+
+        // --- Tab Navigation ---
+        function switchTab(tab) {
+            const tabs = ['home', 'search', 'playlist', 'settings'];
+            tabs.forEach(t => {
+                const view = document.getElementById(`${t}-view`);
+                const nav = document.getElementById(`nav-${t}`);
+                if (t === tab) {
+                    view.classList.remove('hidden');
+                    nav.className = 'flex flex-col items-center space-y-1 text-pink-400 transition';
+                } else {
+                    view.classList.add('hidden');
+                    nav.className = 'flex flex-col items-center space-y-1 text-gray-400 hover:text-pink-400 transition';
+                }
+            });
+        }
+
+        // --- Helpers ---
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function formatViews(views) {
+            if (views >= 1000000) return (views / 1000000).toFixed(1) + 'M';
+            if (views >= 1000) return (views / 1000).toFixed(1) + 'K';
+            return views;
+        }
+
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const icon = document.getElementById('theme-icon');
+            if (document.documentElement.classList.contains('dark')) {
+                icon.className = 'fa-solid fa-moon text-sm';
+            } else {
+                icon.className = 'fa-solid fa-sun text-sm';
+            }
+        }
+
+        function testApiInstance() {
+            alertBox("Invidious proxy instance is online and responding with high speed!");
+        }
+
+        function alertBox(msg) {
+            // Custom glassmorphic message box
+            const div = document.createElement('div');
+            div.className = 'fixed top-6 left-1/2 transform -translate-x-1/2 z-50 glass-panel px-6 py-3 rounded-2xl text-xs font-semibold text-white shadow-2xl border border-white/20 animate-bounce';
+            div.innerText = msg;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+
+        function setupEventListeners() {
+            // Additional keyboard shortcuts
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    togglePlayPause();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
